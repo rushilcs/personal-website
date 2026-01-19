@@ -69,15 +69,22 @@ export default async function handler(req, res) {
       tokens: { input: 0, output: 0, total: 0 }
     };
 
+    // Determine if original input was a URL (before scraping)
+    const originalJobDesc = req.body.jobDescription;
+    const wasUrl = originalJobDesc?.trim().startsWith('http://') || originalJobDesc?.trim().startsWith('https://');
+
     // Log the interaction (async, don't await - don't block response)
     logPlanGenerator({
       companyName,
       jobDescription,
-      isUrl: jobDescription.trim().startsWith('http://') || jobDescription.trim().startsWith('https://'),
+      isUrl: wasUrl,
       plan,
       jobFit,
       metadata,
-    }).catch(err => console.error('[API] Logging error (non-blocking):', err));
+    }).catch(err => {
+      console.error('[API] Logging error (non-blocking):', err);
+      console.error('[API] Logging error details:', err.message, err.stack);
+    });
 
     return res.status(200).json({
       plan,

@@ -59,10 +59,22 @@ export async function initLogTables() {
  */
 export async function logPlanGenerator(data) {
   try {
+    console.log('[Logger] logPlanGenerator called with:', {
+      hasCompanyName: !!data.companyName,
+      hasJobDescription: !!data.jobDescription,
+      hasPlan: !!data.plan,
+      hasJobFit: !!data.jobFit,
+      isUrl: data.isUrl,
+    });
+
     // Ensure tables exist (idempotent)
     await initLogTables();
+    console.log('[Logger] Tables initialized/verified');
 
-    await sql`
+    // Prepare metadata as JSONB-compatible object
+    const metadataJson = data.metadata || {};
+
+    const result = await sql`
       INSERT INTO plan_generator_logs (
         company_name,
         job_description,
@@ -83,14 +95,17 @@ export async function logPlanGenerator(data) {
         ${data.plan?.length || 0},
         ${data.jobFit || null},
         ${data.jobFit?.length || 0},
-        ${JSON.stringify(data.metadata || {})},
+        ${JSON.stringify(metadataJson)}::jsonb,
         ${data.error || null}
       )
     `;
 
-    console.log('[Logger] Plan generator log saved to database');
+    console.log('[Logger] Plan generator log saved to database successfully. Rows affected:', result.rowCount);
   } catch (error) {
     console.error('[Logger] Error logging plan generator:', error);
+    console.error('[Logger] Error details:', error.message);
+    console.error('[Logger] Error stack:', error.stack);
+    console.error('[Logger] Error name:', error.name);
     // Don't throw - logging failures shouldn't break the API
   }
 }
@@ -100,10 +115,20 @@ export async function logPlanGenerator(data) {
  */
 export async function logChatbot(data) {
   try {
+    console.log('[Logger] logChatbot called with:', {
+      hasMessage: !!data.message,
+      hasResponse: !!data.response,
+      conversationHistoryLength: data.conversationHistory?.length || 0,
+    });
+
     // Ensure tables exist (idempotent)
     await initLogTables();
+    console.log('[Logger] Tables initialized/verified for chatbot');
 
-    await sql`
+    // Prepare metadata as JSONB-compatible object
+    const metadataJson = data.metadata || {};
+
+    const result = await sql`
       INSERT INTO chatbot_logs (
         message,
         message_length,
@@ -118,14 +143,17 @@ export async function logChatbot(data) {
         ${data.conversationHistory?.length || 0},
         ${data.response || null},
         ${data.response?.length || 0},
-        ${JSON.stringify(data.metadata || {})},
+        ${JSON.stringify(metadataJson)}::jsonb,
         ${data.error || null}
       )
     `;
 
-    console.log('[Logger] Chatbot log saved to database');
+    console.log('[Logger] Chatbot log saved to database successfully. Rows affected:', result.rowCount);
   } catch (error) {
     console.error('[Logger] Error logging chatbot:', error);
+    console.error('[Logger] Error details:', error.message);
+    console.error('[Logger] Error stack:', error.stack);
+    console.error('[Logger] Error name:', error.name);
     // Don't throw - logging failures shouldn't break the API
   }
 }
