@@ -33,10 +33,10 @@ export default async function handler(req, res) {
       });
     }
     
-    // Decode URL-encoded key if needed
+    // Decode URL-encoded key if needed (handles special characters in query string)
     const decodedKey = adminKey ? decodeURIComponent(adminKey) : null;
     
-    if (adminKey !== expectedKey) {
+    if (!decodedKey || decodedKey !== expectedKey) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 

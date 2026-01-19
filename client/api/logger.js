@@ -1,5 +1,8 @@
 // Database-based logging using Vercel Postgres
-import { sql } from '@vercel/postgres';
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL);
+
 
 /**
  * Initialize database tables (run once)
