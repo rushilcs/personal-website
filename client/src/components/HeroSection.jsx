@@ -11,7 +11,7 @@ export const HeroSection = () => {
       <div className="container max-w-4xl mx-auto text-center relative z-10">
         {/* Large bold headline */}
         <motion.h1 
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-16 text-foreground leading-tight whitespace-nowrap"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-16 text-foreground leading-tight px-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
