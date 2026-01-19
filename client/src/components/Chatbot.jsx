@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Send, Loader2 } from 'lucide-react';
 
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -12,6 +13,12 @@ export const Chatbot = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const expandTimerRef = useRef(null);
+  const collapseTimerRef = useRef(null);
+  const hasExpandedRef = useRef(false);
+  const fortyFiveSecondTimerRef = useRef(null);
+  const aboutSectionExpandedRef = useRef(false);
+  const aboutSectionObserverRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -20,6 +27,103 @@ export const Chatbot = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Expand chatbot a few seconds after "Generate 90 Days Plan" button is pressed
+  useEffect(() => {
+    const handleGeneratePlanPressed = () => {
+      if (isOpen) {
+        return; // Don't expand if already open
+      }
+      
+      // Clear any existing timers
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+      if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+      if (fortyFiveSecondTimerRef.current) clearTimeout(fortyFiveSecondTimerRef.current); // Clear 45-second timer
+      
+      // Expand after 7 seconds, hold for 5 seconds, then collapse
+      expandTimerRef.current = setTimeout(() => {
+        setIsExpanded(true);
+        hasExpandedRef.current = true; // Mark as expanded
+        collapseTimerRef.current = setTimeout(() => {
+          setIsExpanded(false);
+        }, 5000); // Hold for 5 seconds
+      }, 7000); // Expand after 7 seconds
+    };
+
+    // Listen for the custom event
+    window.addEventListener('generatePlanButtonPressed', handleGeneratePlanPressed);
+
+    return () => {
+      window.removeEventListener('generatePlanButtonPressed', handleGeneratePlanPressed);
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+      if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    };
+  }, [isOpen]);
+
+  // Auto-expand after 45 seconds if it hasn't already expanded and button hasn't been pressed
+  useEffect(() => {
+    if (isOpen) {
+      return; // Don't set timer if already open
+    }
+
+    fortyFiveSecondTimerRef.current = setTimeout(() => {
+      // Only expand if it hasn't already expanded from button press
+      if (!hasExpandedRef.current) {
+        setIsExpanded(true);
+        hasExpandedRef.current = true; // Mark as expanded
+        // Collapse after 5 seconds
+        collapseTimerRef.current = setTimeout(() => {
+          setIsExpanded(false);
+        }, 5000);
+      }
+    }, 45000); // 45 seconds = 45000ms
+
+    return () => {
+      if (fortyFiveSecondTimerRef.current) clearTimeout(fortyFiveSecondTimerRef.current);
+    };
+  }, [isOpen]);
+
+  // Auto-expand when user reaches About Me section (first time only)
+  useEffect(() => {
+    if (isOpen || aboutSectionExpandedRef.current) {
+      return; // Don't set observer if already open or already expanded
+    }
+
+    const aboutSection = document.querySelector('#about-rushil');
+    if (!aboutSection) {
+      return;
+    }
+
+    // Use IntersectionObserver to detect when About section is visible
+    aboutSectionObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !aboutSectionExpandedRef.current && !hasExpandedRef.current) {
+            // User has reached About section for the first time
+            aboutSectionExpandedRef.current = true;
+            setIsExpanded(true);
+            hasExpandedRef.current = true; // Mark as expanded
+            // Collapse after 5 seconds
+            collapseTimerRef.current = setTimeout(() => {
+              setIsExpanded(false);
+            }, 5000);
+          }
+        });
+      },
+      {
+        threshold: 0.3, // Trigger when 30% of section is visible
+        rootMargin: '-80px 0px' // Account for navbar
+      }
+    );
+
+    aboutSectionObserverRef.current.observe(aboutSection);
+
+    return () => {
+      if (aboutSectionObserverRef.current) {
+        aboutSectionObserverRef.current.disconnect();
+      }
+    };
+  }, [isOpen]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -79,10 +183,15 @@ export const Chatbot = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-50 hover:scale-110"
+          className="fixed bottom-6 right-6 group z-50 cursor-pointer"
           aria-label="Open chatbot"
         >
-          <MessageCircle className="w-6 h-6" />
+          <div className={`w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg transition-all duration-300 ease-out flex items-center overflow-hidden ${isExpanded ? 'w-[180px] justify-start pl-4' : 'justify-center group-hover:w-[180px] group-hover:rounded-full group-hover:justify-start group-hover:pl-4'}`}>
+            <MessageSquare className="w-6 h-6 flex-shrink-0" />
+            <span className={`text-sm font-medium whitespace-nowrap ml-3 ${isExpanded ? 'block' : 'hidden group-hover:block'}`}>
+              Ask about Rushil
+            </span>
+          </div>
         </button>
       )}
 
@@ -92,8 +201,8 @@ export const Chatbot = () => {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-primary/5">
             <div className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-foreground">Ask About Rushil</h3>
+              <MessageSquare className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-foreground">Ask About Me</h3>
             </div>
             <button
               onClick={() => setIsOpen(false)}

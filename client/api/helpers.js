@@ -30,7 +30,7 @@ export async function scrapeJobDescription(url) {
     if (!response.ok) {
       // If we get a 400/403, the site likely blocks scraping
       if (response.status === 400 || response.status === 403 || response.status === 401) {
-        throw new Error(`Website blocked the request (${response.status}). Many job sites require JavaScript or have bot protection. Please copy and paste the job description text directly instead.`);
+        throw new Error('Automated access is blocked on this site. Please copy and paste the job description text directly.');
       }
       throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
     }
@@ -471,7 +471,12 @@ Seizure Detection Predictor (UCSD Data Science Student Society, Feb 2023 - June 
 - Conducted end-to-end data science project implementing ML models (Naive Bayes, Decision Tree, SVM, k-Means) on 5000 EKG samples
 - Found SVM model using Radial Basis Function was most effective, performing at 98% accuracy`;
 
+  // Check if this is a company Rushil has worked at before
+  const previousCompanies = ['BILL', 'Bill', 'bill'];
+  const isPreviousCompany = previousCompanies.some(prev => companyName.toLowerCase().includes(prev.toLowerCase()));
+  
   const planPrompt = `You are creating a strategic 90-day plan for Rushil Chandrupatla joining ${companyName}.
+${isPreviousCompany ? `\nIMPORTANT: Rushil has previously worked at ${companyName}. In your plan, acknowledge this prior experience and mention that he understands the company's policies, culture, systems, and workflows due to his prior work there. Reference specific systems or projects he worked on at ${companyName} when relevant.` : ''}
 
 STEP 1 - COMPANY RESEARCH (USE YOUR KNOWLEDGE):
 Using your training data and knowledge, research ${companyName}:
@@ -571,6 +576,11 @@ Write in first person. Most items should be strategic and company-specific. Only
               role: 'system',
               content: `${rushilCV}\n\nYou are Rushil Chandrupatla creating a strategic 90-day plan. You have the complete CV above with all experiences, skills, and projects. 
 
+IMPORTANT CONTEXT:
+- Rushil has experience in mentoring (as Consulting Director at Data Science Student Society, he led selection processes, oversaw project execution, and provided technical + strategic support to students)
+- Rushil has experience in AI development and agent development (built AI-driven code-generation frameworks, worked with LLMs, RAG systems, prompt engineering, and agent-like systems at BILL and SEELab)
+${isPreviousCompany ? `- Rushil has previously worked at ${companyName}, so he understands their policies, culture, systems, and workflows. Reference this when relevant.` : ''}
+
 CRITICAL: Every single item in your plan MUST reference a specific experience, project, or skill from the CV. Find creative connections - even if the domain is different, explain how the methodology, skills, or learnings apply. Use phrases like "Building on my experience at BILL where I..." or "Leveraging my work at SEELab where I...". Write in first person.`,
             },
             {
@@ -638,6 +648,11 @@ CRITICAL: Every single item in your plan MUST reference a specific experience, p
           max_tokens: 4000,
           temperature: 0.7,
           system: `${rushilCV}\n\nYou are Rushil Chandrupatla creating a strategic 90-day plan. You have the complete CV above with all experiences, skills, and projects. 
+
+IMPORTANT CONTEXT:
+- Rushil has experience in mentoring (as Consulting Director at Data Science Student Society, he led selection processes, oversaw project execution, and provided technical + strategic support to students)
+- Rushil has experience in AI development and agent development (built AI-driven code-generation frameworks, worked with LLMs, RAG systems, prompt engineering, and agent-like systems at BILL and SEELab)
+${isPreviousCompany ? `- Rushil has previously worked at ${companyName}, so he understands their policies, culture, systems, and workflows. Reference this when relevant.` : ''}
 
 CRITICAL: Every single item in your plan MUST reference a specific experience, project, or skill from the CV. Find creative connections - even if the domain is different, explain how the methodology, skills, or learnings apply. Use phrases like "Building on my experience at BILL where I..." or "Leveraging my work at SEELab where I...". Write in first person.`,
           messages: [
@@ -786,12 +801,15 @@ YOUR TASK:
    - Responsibilities mentioned that imply certain skills
    - Company tech stack (if mentioned or inferable)
 
-2. For EACH requirement, evaluate if Rushil has relevant experience or skills based on his CV above. Be GENEROUS but HONEST:
+2. For EACH requirement, evaluate if Rushil has relevant experience or skills based on his CV above. Be GENEROUS and ACCEPTING of broader concepts:
    - Check a requirement if there is ANY reasonable connection to Rushil's experience, even if indirect
    - Consider related skills (e.g., if job requires TensorFlow and Rushil has PyTorch experience, still check it - both are deep learning frameworks)
    - Consider transferable skills and methodologies
-   - Do NOT check if there is genuinely NO correlation
+   - ACCEPT BROADER CONCEPTS: For example, if a job requires "Vision Transformers" and Rushil has computer vision experience (PromoDrone CNN project) AND transformer experience (ICL transformer project, LLM work), CHECK IT - these are related concepts even if not the exact same technology
+   - If a requirement mentions a specific technology but Rushil has experience in the broader domain (e.g., Vision Transformers → Computer Vision + Transformers), CHECK IT
    - Be generous in connecting related technologies, methodologies, or domains
+   - Do NOT check if there is genuinely NO correlation
+   - IMPORTANT: Don't be overly decisive - if there's any reasonable connection through broader concepts, check the requirement
 
 3. Output as JSON with this exact format:
 {
@@ -841,7 +859,7 @@ IMPORTANT:
           messages: [
             {
               role: 'system',
-              content: `${rushilCV}\n\nYou are evaluating job fit. Be generous but honest - check requirements if there's any reasonable connection, but don't check if there's genuinely no correlation.`,
+              content: `${rushilCV}\n\nYou are evaluating job fit. Be GENEROUS and ACCEPTING of broader concepts - check requirements if there's any reasonable connection through related technologies, methodologies, or domains. For example, if a job requires "Vision Transformers" and the candidate has computer vision experience AND transformer experience, check it even if not the exact same technology. Don't be overly decisive - accept broader conceptual matches.`,
             },
             {
               role: 'user',
@@ -874,7 +892,7 @@ IMPORTANT:
           model: 'claude-3-5-sonnet-20241022',
           max_tokens: 4000,
           temperature: 0.7,
-          system: `${rushilCV}\n\nYou are evaluating job fit. Be generous but honest - check requirements if there's any reasonable connection, but don't check if there's genuinely no correlation.`,
+          system: `${rushilCV}\n\nYou are evaluating job fit. Be GENEROUS and ACCEPTING of broader concepts - check requirements if there's any reasonable connection through related technologies, methodologies, or domains. For example, if a job requires "Vision Transformers" and the candidate has computer vision experience AND transformer experience, check it even if not the exact same technology. Don't be overly decisive - accept broader conceptual matches.`,
           messages: [
             {
               role: 'user',

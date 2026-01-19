@@ -12,7 +12,7 @@ const projects = [
     video: "/projects/videos/genaxix-demo.mp4",
     tags: ["PERN Stack", "Clerk Auth", "Google Gemini", "Clerk Billing", "OPEN SOURCE"],
     demoUrl: "https://genaxis.vercel.app",
-    githubUrl: "https://github.com/Sahilmd01/genaxis",
+    githubUrl: "#",
     featured: true,
     accentColor: "from-emerald-500 to-teal-600",
     status: "Live",
@@ -27,7 +27,7 @@ const projects = [
     video: "/projects/videos/nauracare-demo.mp4",
     tags: ["React", "Node.js", "MongoDB", "Stripe", "JWT Auth"],
     demoUrl: "https://nauracare.vercel.app",
-    githubUrl: "https://github.com/Sahilmd01/neuracare",
+    githubUrl: "#",
     featured: true,
     accentColor: "from-emerald-500 to-teal-600",
     status: "Live",
@@ -42,7 +42,7 @@ const projects = [
     video: "/projects/videos/vante-demo.mp4",
     tags: ["React", "Node.js", "Stripe", "Redis"],
     demoUrl: "https://e-commerce-website-4w6a.vercel.app",
-    githubUrl: "https://github.com/Sahilmd01/E-commerce-website",
+    githubUrl: "#",
     featured: true,
     accentColor: "from-purple-500 to-indigo-600",
     status: "Live",
@@ -57,7 +57,7 @@ const projects = [
     video: "/projects/videos/converse-demo.mp4",
     tags: ["Socket.IO", "MongoDB", "React", "WebRTC"],
     demoUrl: "https://converse-pro-frontend.vercel.app",
-    githubUrl: "https://github.com/Sahilmd01/converse-pro",
+    githubUrl: "#",
     featured: true,
     accentColor: "from-blue-500 to-cyan-600",
     status: "Live",
@@ -72,7 +72,7 @@ const projects = [
     video: "/projects/videos/blogni-demo.mp4",
     tags: ["Next.js", "Gemini AI", "Clerk Auth", "Redis"],
     demoUrl: "https://blogni.vercel.app",
-    githubUrl: "https://github.com/Sahilmd01/Blogni",
+    githubUrl: "#",
     accentColor: "from-amber-500 to-orange-600",
     status: "Live",
     highlights: ["AI content generation", "Multi-language", "User accounts"]
@@ -86,7 +86,7 @@ const projects = [
     video: "/projects/videos/spendlix-demo.mp4",
     tags: ["React", "Chart.js", "Node.js", "Firebase"],
     demoUrl: "https://spendlix.vercel.app/login",
-    githubUrl: "https://github.com/Sahilmd01/Spendlix",
+    githubUrl: "#",
     accentColor: "from-rose-500 to-pink-600",
     status: "Live",
     highlights: ["Expense tracking", "Data visualization", "Budget planning"]
@@ -100,7 +100,7 @@ const projects = [
     video: "/projects/videos/eattoo-demo.mp4",
     tags: ["React", "Redux", "Mapbox", "Stripe"],
     demoUrl: "https://eattoo-food-delivery-website-frontend.onrender.com/",
-    githubUrl: "https://github.com/Sahilmd01/Eattoo-food-delivery-website",
+    githubUrl: "#",
     accentColor: "from-violet-500 to-purple-600",
     status: "Live",
     highlights: ["Restaurant listings", "Order system", "Location services"]
@@ -508,7 +508,7 @@ export const ProjectsSection = () => {
               </motion.a>
               
               <motion.a
-                href="https://github.com/sahilmd01"
+                href="https://github.com/rushilcs"
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.05 }}

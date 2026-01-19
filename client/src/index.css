@@ -60,6 +60,22 @@
       opacity: 0;
     }
   }
+  @keyframes pulse-gradient {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  --animate-pulse-gradient: pulse-gradient 2s ease-in-out infinite;
+}
+
+@layer utilities {
+  .pulse-gradient-animation {
+    animation: pulse-gradient 2s ease-in-out infinite;
+  }
 }
 
 @layer base {

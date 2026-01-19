@@ -40,13 +40,13 @@ export default async function handler(req, res) {
         if (!jobDescription || jobDescription.length < 50) {
           return res.status(400).json({ 
             error: 'Could not extract job description from URL',
-            message: 'The URL may require JavaScript to load content, or the page structure is not recognized. Please copy and paste the job description text directly.'
+            message: 'Automated access is blocked on this site. Please copy and paste the job description text directly.'
           });
         }
       } catch (error) {
         return res.status(400).json({ 
           error: 'Failed to scrape job description from URL',
-          message: error.message || 'The website may block automated access. Please copy and paste the job description text directly.'
+          message: error.message || 'Automated access is blocked on this site. Please copy and paste the job description text directly.'
         });
       }
     }

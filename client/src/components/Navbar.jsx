@@ -2,21 +2,22 @@ import { useEffect, useState } from "react";
 import {
   User,
   Brain,
-  Lightbulb,
-  FileText,
+  Code,
+  Briefcase,
   Sun,
   Moon,
   Github,
   Linkedin,
+  Mail,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { name: "About", href: "#about", icon: User },
   { name: "What I'd Do", href: "#reasoning", icon: Brain },
-  { name: "Concepts", href: "#concepts", icon: Lightbulb },
-  { name: "Evidence", href: "#evidence", icon: FileText },
+  { name: "How I Design", href: "#concepts-portfolio", icon: Code },
+  { name: "Systems I've Owned", href: "#work-ledger", icon: Briefcase },
+  { name: "About Me", href: "#about-rushil", icon: User },
 ];
 
 const ThemeToggle = () => {
@@ -118,11 +119,11 @@ export const Navbar = () => {
                 href={item.href}
                 onClick={(e) => handleNavClick(e, item.href)}
                 className={cn(
-                  "px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                  "px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium",
                   "flex items-center gap-2",
                   activeSection === item.href
                     ? "bg-primary/10 text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    : "text-muted-foreground hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-800 hover:scale-105 transform"
                 )}
                 aria-label={item.name}
               >
@@ -134,24 +135,32 @@ export const Navbar = () => {
             {/* External Links */}
             <div className="flex items-center gap-2 ml-4 pl-4 border-l border-border">
               <a
-                href="https://github.com/rushilcs"
+                href="https://www.linkedin.com/in/rushil-c/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-lg hover:bg-accent transition-colors"
-                title="GitHub"
-                aria-label="GitHub"
-              >
-                <Github className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-              </a>
-              <a
-                href="https://linkedin.com/in/rushilcs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-lg hover:bg-accent transition-colors"
+                className="p-2 rounded-lg transition-all duration-200 text-muted-foreground hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-800 hover:scale-105 transform hover:shadow-lg hover:shadow-primary/20"
                 title="LinkedIn"
                 aria-label="LinkedIn"
               >
-                <Linkedin className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                <Linkedin className="w-4 h-4" />
+              </a>
+              <a
+                href="mailto:rushilcs@gmail.com"
+                className="p-2 rounded-lg transition-all duration-200 text-muted-foreground hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-800 hover:scale-105 transform hover:shadow-lg hover:shadow-primary/20"
+                title="Email"
+                aria-label="Email"
+              >
+                <Mail className="w-4 h-4" />
+              </a>
+              <a
+                href="https://github.com/rushilcs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg transition-all duration-200 text-muted-foreground hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-800 hover:scale-105 transform hover:shadow-lg hover:shadow-primary/20"
+                title="GitHub"
+                aria-label="GitHub"
+              >
+                <Github className="w-4 h-4" />
               </a>
               <ThemeToggle />
             </div>

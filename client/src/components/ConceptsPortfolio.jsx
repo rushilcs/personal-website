@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Users, Code, AlertTriangle, TrendingUp, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { fastScrollTo } from '../lib/utils';
 
 // ML Projects as Model Cards
 const mlProjects = [
@@ -49,7 +50,7 @@ const mlProjects = [
   {
     id: 3,
     title: "Wearable-Sensor LLMs",
-    company: "SEELab UCSD",
+    company: "Systems Energy and Efficiency Lab (SEELab)",
     problemClass: "Multimodal temporal reasoning for sensor understanding",
     concepts: ["Compositional Attention", "Temporal Modeling", "RAG Systems", "Dataset Curation"],
     tradeoffs: {
@@ -114,10 +115,139 @@ const mlProjects = [
 export const ConceptsPortfolio = () => {
   const [audience, setAudience] = useState('ml'); // 'pm' or 'ml'
   const [expandedCard, setExpandedCard] = useState(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const prevAudienceRef = useRef(audience);
 
   const toggleCard = (id) => {
-    setExpandedCard(expandedCard === id ? null : id);
+    const wasExpanded = expandedCard === id;
+    setExpandedCard(wasExpanded ? null : id);
+    
+    // If expanding (not collapsing), scroll to the card after expansion animation completes
+    if (!wasExpanded) {
+      setTimeout(() => {
+        const anchorIdMap = {
+          1: 'modelcard-codegen',
+          2: 'modelcard-errorclustering',
+          3: 'modelcard-wearable-sensor',
+          4: 'modelcard-cv-demographics',
+          5: 'modelcard-in-context-learning'
+        };
+        const anchorId = anchorIdMap[id];
+        if (anchorId) {
+          const element = document.querySelector(`#${anchorId}`);
+          if (element) {
+            // Account for navbar height (80px) plus some padding (20px)
+            // We want the top border of the card to be visible right after the navbar
+            const navbarHeight = 80;
+            const padding = 20;
+            const targetOffset = navbarHeight + padding;
+            
+            // Get the absolute position of the element
+            const rect = element.getBoundingClientRect();
+            const absoluteTop = rect.top + window.pageYOffset;
+            
+            // Calculate scroll position so card top is at targetOffset from viewport top
+            const scrollY = absoluteTop - targetOffset;
+            fastScrollTo(scrollY, 200); // Fast scroll with 200ms duration
+          }
+        }
+      }, 300); // Wait for expansion animation to complete (300ms animation + small buffer)
+    }
   };
+
+  // Map model card IDs to work ledger company IDs
+  const modelCardToWorkLedger = {
+    1: 'bill', // Code Generation -> BILL
+    2: 'bill', // Error Clustering -> BILL
+    3: 'seelab', // Wearable Sensor -> SEELab
+    4: 'promodrone', // CV Demographics -> PromoDrone
+    5: 'ucsd-capstone' // In-Context Learning Study -> UCSD Capstone
+  };
+
+  const scrollToWorkLedger = (companyId) => {
+    // Immediately stop any ongoing scrolls and calculate position
+    const companyElement = document.querySelector(`#work-ledger-company-${companyId}`);
+    if (!companyElement) return;
+    
+    // Calculate position immediately while element is stable
+    const rect = companyElement.getBoundingClientRect();
+    const absoluteTop = rect.top + (window.scrollY || window.pageYOffset);
+    const yOffset = 100; // Navbar (80px) + padding (20px)
+    const scrollY = absoluteTop - yOffset;
+    
+    // Start scroll immediately
+    fastScrollTo(scrollY, 200);
+    
+    // Dispatch event to expand the company card with skipAutoScroll flag
+    // This prevents the duplicate scroll from the expansion handler
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('expandWorkLedgerCompany', { 
+        detail: { companyId, skipAutoScroll: true } 
+      }));
+    }, 250);
+  };
+
+  // Handle audience change animation
+  useEffect(() => {
+    if (prevAudienceRef.current !== audience) {
+      // Only animate if all cards are closed
+      if (expandedCard === null) {
+        setIsAnimating(true);
+        // Reset animation state after animation completes
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 600); // 300ms fade out + 300ms fade in
+      }
+      prevAudienceRef.current = audience;
+    }
+  }, [audience, expandedCard]);
+
+  useEffect(() => {
+    const handleExpandCard = (event) => {
+      const { cardId, skipAutoScroll } = event.detail;
+      if (cardId) {
+        setExpandedCard(cardId);
+        
+        // Only auto-scroll if the card was opened directly (not programmatically)
+        // This prevents duplicate scrolls when opened via "View Design Choices" button
+        if (!skipAutoScroll) {
+          setTimeout(() => {
+            const anchorIdMap = {
+              1: 'modelcard-codegen',
+              2: 'modelcard-errorclustering',
+              3: 'modelcard-wearable-sensor',
+              4: 'modelcard-cv-demographics',
+              5: 'modelcard-in-context-learning'
+            };
+            const anchorId = anchorIdMap[cardId];
+            if (anchorId) {
+              const element = document.querySelector(`#${anchorId}`);
+              if (element) {
+                // Account for navbar height (80px) plus some padding (20px)
+                // We want the top border of the card to be visible right after the navbar
+                const navbarHeight = 80;
+                const padding = 20;
+                const targetOffset = navbarHeight + padding;
+                
+                // Get the absolute position of the element
+                const rect = element.getBoundingClientRect();
+                const absoluteTop = rect.top + window.pageYOffset;
+                
+                // Calculate scroll position so card top is at targetOffset from viewport top
+                const scrollY = absoluteTop - targetOffset;
+                fastScrollTo(scrollY, 200); // Fast scroll with 200ms duration
+              }
+            }
+          }, 300); // Wait for expansion animation to complete (300ms animation + small buffer)
+        }
+      }
+    };
+
+    window.addEventListener('expandModelCard', handleExpandCard);
+    return () => {
+      window.removeEventListener('expandModelCard', handleExpandCard);
+    };
+  }, []);
 
   return (
     <section id="concepts-portfolio" className="min-h-screen px-4 sm:px-6 lg:px-8 py-20 sm:py-28 scroll-mt-20 bg-gradient-to-br from-background via-primary/5 to-background">
@@ -128,95 +258,121 @@ export const ConceptsPortfolio = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-12"
+          className="mb-12 text-center"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Sparkles className="h-4 w-4" />
-            Concept-Driven Portfolio
-          </div>
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
-            Model Cards
+            How I Design ML Systems
           </h1>
-          <p className="text-lg sm:text-xl text-foreground/80 mb-8 max-w-3xl">
-            Each project is not a page—it's a model card. This mirrors how real ML design reviews work:
-            concepts, trade-offs, failure cases, and scalability considerations.
-          </p>
+          <div className="max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-foreground/80 mb-4">
+              This format mirrors design docs and production ML reviews. Each project answers:
+            </p>
+            <div className="border border-border/50 bg-card/30 rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-lg sm:text-lg" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                <span>(1) What problem class is this?</span>
+                <span>(2) What concepts does it rely on?</span>
+                <span>(3) What tradeoffs were unavoidable?</span>
+                <span>(4) Where does it break?</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ML Concepts Demonstrated */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-12 mt-8"
+          >
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-foreground flex items-center gap-2">
+              <Brain className="w-6 h-6 text-primary" />
+              My Priorities
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { concept: "Concept Bottleneck Modeling", description: "Explicit concept-driven design" },
+                { concept: "Audience-Conditioned Explanations", description: "Adaptive communication" },
+                { concept: "Systems Trade-offs", description: "Infrastructure and model decisions" },
+                { concept: "Failure Mode Analysis", description: "Where systems break" },
+                { concept: "Evaluation at Scale", description: "Production metrics and offline validation" },
+                { concept: "Continuous Learning", description: "Adaptive systems over time" }
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 flex flex-col items-center justify-center text-center"
+                >
+                  <h3 className="font-semibold text-foreground mb-1">{item.concept}</h3>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
           {/* Audience Toggle */}
-          <div className="flex items-center gap-4 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="flex items-center gap-4 mb-12 mt-8"
+          >
             <span className="text-sm font-medium text-muted-foreground">Explain to:</span>
             <div className="flex gap-2 bg-muted/50 rounded-lg p-1">
               <button
-                onClick={() => setAudience('pm')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  audience === 'pm'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Users className="w-4 h-4 inline mr-2" />
-                Product Manager
-              </button>
-              <button
                 onClick={() => setAudience('ml')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer ${
                   audience === 'ml'
                     ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:scale-105 transform'
                 }`}
               >
                 <Code className="w-4 h-4 inline mr-2" />
                 ML Engineer
               </button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ML Concepts Demonstrated */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-12"
-        >
-          <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-foreground flex items-center gap-2">
-            <Brain className="w-6 h-6 text-primary" />
-            ML Concepts Demonstrated
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { concept: "Concept Bottleneck Modeling", description: "Explicit concept-driven design" },
-              { concept: "Audience-Conditioned Explanations", description: "Adaptive communication" },
-              { concept: "Systems Trade-offs", description: "Infrastructure and model decisions" },
-              { concept: "Failure Mode Analysis", description: "Where systems break" },
-              { concept: "Evaluation at Scale", description: "Production metrics and offline validation" },
-              { concept: "Continuous Learning", description: "Adaptive systems over time" }
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20"
+              <button
+                onClick={() => setAudience('pm')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  audience === 'pm'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:scale-105 transform'
+                }`}
               >
-                <h3 className="font-semibold text-foreground mb-1">{item.concept}</h3>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              </div>
-            ))}
-          </div>
+                <Users className="w-4 h-4 inline mr-2" />
+                Product Manager
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
 
         {/* Model Cards */}
         <div className="space-y-6">
-          {mlProjects.map((project, idx) => (
+          {mlProjects.map((project, idx) => {
+            // Map project IDs to anchor IDs
+            const anchorIdMap = {
+              1: 'modelcard-codegen',
+              2: 'modelcard-errorclustering',
+              3: 'modelcard-wearable-sensor',
+              4: 'modelcard-cv-demographics',
+              5: 'modelcard-in-context-learning'
+            };
+            const anchorId = anchorIdMap[project.id];
+            
+            return (
             <motion.div
-              key={project.id}
+              key={`${project.id}-${audience}`}
+              id={anchorId}
               initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: idx * 0.1 }}
+              animate={isAnimating && expandedCard === null ? { opacity: [1, 0, 1] } : { opacity: 1, y: 0 }}
+              whileInView={!isAnimating || expandedCard !== null ? { opacity: 1, y: 0 } : undefined}
+              viewport={{ once: !isAnimating || expandedCard !== null }}
+              transition={isAnimating && expandedCard === null ? { duration: 0.6, times: [0, 0.5, 1], delay: idx * 0.05 } : { duration: 0.6, delay: idx * 0.1 }}
             >
               <div
-                className={`rounded-xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden transition-all duration-300 ${
-                  expandedCard === project.id ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
+                className={`rounded-xl border bg-card/50 backdrop-blur-sm overflow-hidden transition-all duration-300 ${
+                  expandedCard === project.id 
+                    ? 'border-primary/60 shadow-xl dark:shadow-[0_10px_50px_rgba(59,130,246,0.4)] dark:border-primary/80 dark:ring-2 dark:ring-primary/30' 
+                    : 'border-border shadow-md hover:shadow-lg hover:-translate-y-1 dark:shadow-[0_4px_20px_rgba(59,130,246,0.15)] dark:hover:shadow-[0_8px_30px_rgba(59,130,246,0.25)]'
                 }`}
               >
                 {/* Card Header */}
@@ -234,14 +390,14 @@ export const ConceptsPortfolio = () => {
                           {project.company}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-4">
+                      <p className="text-base text-muted-foreground mb-4">
                         <strong>Problem Class:</strong> {project.problemClass}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {project.concepts.map((concept, i) => (
                           <span
                             key={i}
-                            className="px-3 py-1 text-xs font-medium rounded-full bg-muted text-foreground"
+                            className="px-3 py-1 text-sm font-medium rounded-full bg-muted text-foreground"
                           >
                             {concept}
                           </span>
@@ -268,35 +424,48 @@ export const ConceptsPortfolio = () => {
                       className="overflow-hidden"
                     >
                       <div className="px-6 pb-6 space-y-6 border-t border-border pt-6">
+                        {/* Work Info Link */}
+                        {modelCardToWorkLedger[project.id] && (
+                          <div className="mb-4">
+                            <button
+                              onClick={() => scrollToWorkLedger(modelCardToWorkLedger[project.id])}
+                              className="inline-flex items-center gap-2 text-base text-primary hover:text-primary/80 transition-colors"
+                            >
+                              See Work Info
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+
                         {/* Trade-offs */}
                         <div>
-                          <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                          <h4 className="text-base font-semibold text-foreground mb-2 flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-primary" />
                             Trade-offs
                           </h4>
-                          <p className="text-sm text-foreground/80 leading-relaxed">
+                          <p className="text-base text-foreground/80 leading-relaxed">
                             {project.tradeoffs[audience]}
                           </p>
                         </div>
 
                         {/* Failure Cases */}
                         <div>
-                          <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                          <h4 className="text-base font-semibold text-foreground mb-2 flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-amber-500" />
                             Failure Cases
                           </h4>
-                          <p className="text-sm text-foreground/80 leading-relaxed">
+                          <p className="text-base text-foreground/80 leading-relaxed">
                             {project.failureCases[audience]}
                           </p>
                         </div>
 
                         {/* At Scale */}
                         <div>
-                          <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                          <h4 className="text-base font-semibold text-foreground mb-2 flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-green-500" />
                             What I'd Change at Scale
                           </h4>
-                          <p className="text-sm text-foreground/80 leading-relaxed">
+                          <p className="text-base text-foreground/80 leading-relaxed">
                             {project.scaleChanges[audience]}
                           </p>
                         </div>
@@ -304,12 +473,12 @@ export const ConceptsPortfolio = () => {
                         {/* Infrastructure */}
                         {project.infra && (
                           <div>
-                            <h4 className="font-semibold text-foreground mb-2">Infrastructure</h4>
+                            <h4 className="text-base font-semibold text-foreground mb-2">Infrastructure</h4>
                             <div className="flex flex-wrap gap-2">
                               {project.infra.map((item, i) => (
                                 <span
                                   key={i}
-                                  className="px-3 py-1 text-xs font-medium rounded bg-muted/50 text-foreground"
+                                  className="px-3 py-1 text-sm font-medium rounded bg-muted/50 text-foreground"
                                 >
                                   {item}
                                 </span>
@@ -321,11 +490,11 @@ export const ConceptsPortfolio = () => {
                         {/* Evaluation */}
                         {project.evaluation && (
                           <div>
-                            <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                            <h4 className="text-base font-semibold text-foreground mb-2 flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-green-500" />
                               Evaluation
                             </h4>
-                            <p className="text-sm text-foreground/80">{project.evaluation}</p>
+                            <p className="text-base text-foreground/80">{project.evaluation}</p>
                           </div>
                         )}
                       </div>
@@ -334,23 +503,9 @@ export const ConceptsPortfolio = () => {
                 </AnimatePresence>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
-
-        {/* Footer Note */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-12 p-6 rounded-lg bg-muted/30 border border-border"
-        >
-          <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> This format mirrors research papers, design docs, and production ML reviews.
-            Each project answers: (1) What problem class is this? (2) What concepts does it rely on? 
-            (3) What tradeoffs were unavoidable? (4) Where does it break?
-          </p>
-        </motion.div>
       </div>
     </section>
   );
