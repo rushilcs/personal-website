@@ -1,53 +1,169 @@
-// Database-based logging using Vercel Postgres
-import { sql } from '@vercel/postgres';
+// Google Sheets-based logging
+// Uses Google Sheets API to store logs in a spreadsheet
+
+import { google } from 'googleapis';
 
 /**
- * Initialize database tables (run once)
- * This is safe to call multiple times - it won't recreate existing tables
+ * Get authenticated Google Sheets client
  */
-export async function initLogTables() {
+async function getSheetsClient() {
   try {
-    // Create plan_generator_logs table
-    await sql`
-      CREATE TABLE IF NOT EXISTS plan_generator_logs (
-        id SERIAL PRIMARY KEY,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        company_name TEXT,
-        job_description TEXT,
-        job_description_length INTEGER,
-        is_url BOOLEAN,
-        plan TEXT,
-        plan_length INTEGER,
-        job_fit TEXT,
-        job_fit_length INTEGER,
-        metadata JSONB,
-        error TEXT
-      )
-    `;
+    // Get service account credentials from environment variable
+    const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
+    
+    if (!credentialsJson) {
+      console.warn('[Logger] GOOGLE_SERVICE_ACCOUNT_CREDENTIALS not set, logging disabled');
+      return null;
+    }
 
-    // Create chatbot_logs table
-    await sql`
-      CREATE TABLE IF NOT EXISTS chatbot_logs (
-        id SERIAL PRIMARY KEY,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        message TEXT,
-        message_length INTEGER,
-        conversation_history_length INTEGER,
-        response TEXT,
-        response_length INTEGER,
-        metadata JSONB,
-        error TEXT
-      )
-    `;
+    // Parse the JSON credentials
+    const credentials = JSON.parse(credentialsJson);
+    
+    // Create JWT client for service account
+    const auth = new google.auth.JWT(
+      credentials.client_email,
+      null,
+      credentials.private_key,
+      ['https://www.googleapis.com/auth/spreadsheets']
+    );
 
-    // Create indexes for faster queries
-    await sql`CREATE INDEX IF NOT EXISTS idx_plan_logs_timestamp ON plan_generator_logs(timestamp DESC)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_chatbot_logs_timestamp ON chatbot_logs(timestamp DESC)`;
-
-    console.log('[Logger] Database tables initialized');
+    const sheets = google.sheets({ version: 'v4', auth });
+    return sheets;
   } catch (error) {
-    console.error('[Logger] Error initializing tables:', error);
-    // Don't throw - allow app to continue even if tables already exist
+    console.error('[Logger] Error initializing Google Sheets client:', error);
+    return null;
+  }
+}
+
+/**
+ * Get the spreadsheet ID from environment variable
+ */
+function getSpreadsheetId() {
+  return process.env.GOOGLE_SHEET_ID;
+}
+
+/**
+ * Append a row to a Google Sheet
+ */
+async function appendRow(sheetName, values) {
+  try {
+    const sheets = await getSheetsClient();
+    const spreadsheetId = getSpreadsheetId();
+
+    if (!sheets || !spreadsheetId) {
+      console.warn('[Logger] Google Sheets not configured, skipping log');
+      return;
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${sheetName}!A:Z`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [values],
+      },
+    });
+
+    console.log(`[Logger] Log appended to ${sheetName}`);
+  } catch (error) {
+    console.error(`[Logger] Error appending to ${sheetName}:`, error);
+    // Don't throw - logging failures shouldn't break the API
+  }
+}
+
+/**
+ * Read rows from a Google Sheet
+ */
+async function readRows(sheetName, limit = 1000) {
+  try {
+    const sheets = await getSheetsClient();
+    const spreadsheetId = getSpreadsheetId();
+
+    if (!sheets || !spreadsheetId) {
+      return [];
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:Z`,
+    });
+
+    const rows = response.data.values || [];
+    
+    // Skip header row and limit results
+    const dataRows = rows.slice(1).slice(0, limit);
+    
+    return dataRows;
+  } catch (error) {
+    console.error(`[Logger] Error reading from ${sheetName}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Initialize Google Sheet with headers (run once manually or via setup script)
+ * This creates the header rows for both sheets
+ */
+export async function initSheets() {
+  try {
+    const sheets = await getSheetsClient();
+    const spreadsheetId = getSpreadsheetId();
+
+    if (!sheets || !spreadsheetId) {
+      console.error('[Logger] Google Sheets not configured');
+      return;
+    }
+
+    // Plan Generator Logs headers
+    const planHeaders = [
+      'Timestamp',
+      'Company Name',
+      'Job Description',
+      'Job Description Length',
+      'Is URL',
+      'Plan',
+      'Plan Length',
+      'Job Fit',
+      'Job Fit Length',
+      'Metadata',
+      'Error'
+    ];
+
+    // Chatbot Logs headers
+    const chatbotHeaders = [
+      'Timestamp',
+      'Message',
+      'Message Length',
+      'Conversation History Length',
+      'Response',
+      'Response Length',
+      'Metadata',
+      'Error'
+    ];
+
+    // Clear existing data and add headers
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Plan Generator Logs!A1',
+      valueInputOption: 'RAW',
+      resource: {
+        values: [planHeaders],
+      },
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Chatbot Logs!A1',
+      valueInputOption: 'RAW',
+      resource: {
+        values: [chatbotHeaders],
+      },
+    });
+
+    console.log('[Logger] Google Sheets initialized with headers');
+  } catch (error) {
+    console.error('[Logger] Error initializing sheets:', error);
   }
 }
 
@@ -55,168 +171,112 @@ export async function initLogTables() {
  * Log a plan generator interaction
  */
 export async function logPlanGenerator(data) {
-  try {
-    // Ensure tables exist (idempotent)
-    await initLogTables();
+  const timestamp = new Date().toISOString();
+  
+  const row = [
+    timestamp,
+    data.companyName || '',
+    data.jobDescription || '',
+    data.jobDescription?.length || 0,
+    data.isUrl || false,
+    data.plan || '',
+    data.plan?.length || 0,
+    data.jobFit || '',
+    data.jobFit?.length || 0,
+    JSON.stringify(data.metadata || {}),
+    data.error || '',
+  ];
 
-    await sql`
-      INSERT INTO plan_generator_logs (
-        company_name,
-        job_description,
-        job_description_length,
-        is_url,
-        plan,
-        plan_length,
-        job_fit,
-        job_fit_length,
-        metadata,
-        error
-      ) VALUES (
-        ${data.companyName || null},
-        ${data.jobDescription || null},
-        ${data.jobDescription?.length || 0},
-        ${data.isUrl || false},
-        ${data.plan || null},
-        ${data.plan?.length || 0},
-        ${data.jobFit || null},
-        ${data.jobFit?.length || 0},
-        ${JSON.stringify(data.metadata || {})},
-        ${data.error || null}
-      )
-    `;
-
-    console.log('[Logger] Plan generator log saved to database');
-  } catch (error) {
-    console.error('[Logger] Error logging plan generator:', error);
-    // Don't throw - logging failures shouldn't break the API
-  }
+  await appendRow('Plan Generator Logs', row);
 }
 
 /**
  * Log a chatbot interaction
  */
 export async function logChatbot(data) {
-  try {
-    // Ensure tables exist (idempotent)
-    await initLogTables();
+  const timestamp = new Date().toISOString();
+  
+  const row = [
+    timestamp,
+    data.message || '',
+    data.message?.length || 0,
+    data.conversationHistory?.length || 0,
+    data.response || '',
+    data.response?.length || 0,
+    JSON.stringify(data.metadata || {}),
+    data.error || '',
+  ];
 
-    await sql`
-      INSERT INTO chatbot_logs (
-        message,
-        message_length,
-        conversation_history_length,
-        response,
-        response_length,
-        metadata,
-        error
-      ) VALUES (
-        ${data.message || null},
-        ${data.message?.length || 0},
-        ${data.conversationHistory?.length || 0},
-        ${data.response || null},
-        ${data.response?.length || 0},
-        ${JSON.stringify(data.metadata || {})},
-        ${data.error || null}
-      )
-    `;
-
-    console.log('[Logger] Chatbot log saved to database');
-  } catch (error) {
-    console.error('[Logger] Error logging chatbot:', error);
-    // Don't throw - logging failures shouldn't break the API
-  }
+  await appendRow('Chatbot Logs', row);
 }
 
 /**
- * Get all plan generator logs (protected by admin key)
- * @param {number} limit - Maximum number of logs to return (default: 1000)
+ * Get all plan generator logs
  */
 export async function getPlanLogs(limit = 1000) {
-  try {
-    const result = await sql`
-      SELECT 
-        id,
-        timestamp,
-        company_name as "companyName",
-        job_description as "jobDescription",
-        job_description_length as "jobDescriptionLength",
-        is_url as "isUrl",
-        plan,
-        plan_length as "planLength",
-        job_fit as "jobFit",
-        job_fit_length as "jobFitLength",
-        metadata,
-        error
-      FROM plan_generator_logs
-      ORDER BY timestamp DESC
-      LIMIT ${limit}
-    `;
-
-    // Transform to match expected format
-    return result.rows.map(row => ({
-      timestamp: row.timestamp.toISOString(),
+  const rows = await readRows('Plan Generator Logs', limit);
+  
+  return rows.map(row => {
+    let metadata = {};
+    try {
+      if (row[9]) {
+        metadata = JSON.parse(row[9]);
+      }
+    } catch (e) {
+      console.warn('[Logger] Error parsing metadata JSON:', e);
+    }
+    
+    return {
+      timestamp: row[0] || '',
       userInput: {
-        companyName: row.companyName,
-        jobDescription: row.jobDescription,
-        jobDescriptionLength: row.jobDescriptionLength,
-        isUrl: row.isUrl,
+        companyName: row[1] || '',
+        jobDescription: row[2] || '',
+        jobDescriptionLength: parseInt(row[3]) || 0,
+        isUrl: row[4] === 'true' || row[4] === true,
       },
       modelOutput: {
-        plan: row.plan,
-        planLength: row.planLength,
-        jobFit: row.jobFit,
-        jobFitLength: row.jobFitLength,
+        plan: row[5] || '',
+        planLength: parseInt(row[6]) || 0,
+        jobFit: row[7] || '',
+        jobFitLength: parseInt(row[8]) || 0,
       },
-      metadata: row.metadata || {},
-      error: row.error,
-    }));
-  } catch (error) {
-    console.error('[Logger] Error reading plan logs:', error);
-    return [];
-  }
+      metadata,
+      error: row[10] || null,
+    };
+  });
 }
 
 /**
- * Get all chatbot logs (protected by admin key)
- * @param {number} limit - Maximum number of logs to return (default: 1000)
+ * Get all chatbot logs
  */
 export async function getChatbotLogs(limit = 1000) {
-  try {
-    const result = await sql`
-      SELECT 
-        id,
-        timestamp,
-        message,
-        message_length as "messageLength",
-        conversation_history_length as "conversationHistoryLength",
-        response,
-        response_length as "responseLength",
-        metadata,
-        error
-      FROM chatbot_logs
-      ORDER BY timestamp DESC
-      LIMIT ${limit}
-    `;
-
-    // Transform to match expected format
-    return result.rows.map(row => ({
-      timestamp: row.timestamp.toISOString(),
+  const rows = await readRows('Chatbot Logs', limit);
+  
+  return rows.map(row => {
+    let metadata = {};
+    try {
+      if (row[6]) {
+        metadata = JSON.parse(row[6]);
+      }
+    } catch (e) {
+      console.warn('[Logger] Error parsing metadata JSON:', e);
+    }
+    
+    return {
+      timestamp: row[0] || '',
       userInput: {
-        message: row.message,
-        messageLength: row.messageLength,
-        conversationHistoryLength: row.conversationHistoryLength,
+        message: row[1] || '',
+        messageLength: parseInt(row[2]) || 0,
+        conversationHistoryLength: parseInt(row[3]) || 0,
       },
       modelOutput: {
-        response: row.response,
-        responseLength: row.responseLength,
+        response: row[4] || '',
+        responseLength: parseInt(row[5]) || 0,
       },
-      metadata: row.metadata || {},
-      error: row.error,
-    }));
-  } catch (error) {
-    console.error('[Logger] Error reading chatbot logs:', error);
-    return [];
-  }
+      metadata,
+      error: row[7] || null,
+    };
+  });
 }
 
 /**
@@ -224,17 +284,17 @@ export async function getChatbotLogs(limit = 1000) {
  */
 export async function getLogStats() {
   try {
-    const [planStats, chatbotStats] = await Promise.all([
-      sql`SELECT COUNT(*) as count FROM plan_generator_logs`,
-      sql`SELECT COUNT(*) as count FROM chatbot_logs`,
+    const [planRows, chatbotRows] = await Promise.all([
+      readRows('Plan Generator Logs', 10000),
+      readRows('Chatbot Logs', 10000),
     ]);
 
     return {
       planGenerator: {
-        total: parseInt(planStats.rows[0].count),
+        total: planRows.length,
       },
       chatbot: {
-        total: parseInt(chatbotStats.rows[0].count),
+        total: chatbotRows.length,
       },
     };
   } catch (error) {

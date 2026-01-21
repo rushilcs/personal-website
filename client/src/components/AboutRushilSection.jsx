@@ -69,7 +69,7 @@ export const AboutRushilSection = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.6 }}
         >
-          Everything else on this site shows how I think when I build.
+                 If you’re building something ambitious and this resonates, let's chat.
         </motion.p>
       </div>
     </section>

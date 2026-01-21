@@ -1,5 +1,6 @@
 // Vercel Serverless Function for Chatbot
 import { chatWithRushil } from './helpers.js';
+import { logChatbot } from './logger.js';
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -29,11 +30,26 @@ export default async function handler(req, res) {
 
     const response = await chatWithRushil(message, conversationHistory || []);
 
+    // Log the interaction to Google Sheets
+    logChatbot({
+      message,
+      conversationHistory,
+      response,
+    }).catch(err => console.error('[API] Error logging to Google Sheets:', err));
+
     return res.status(200).json({
       response,
     });
   } catch (error) {
     console.error('Error in chatbot:', error);
+    
+    // Log the error to Google Sheets
+    logChatbot({
+      message: req.body?.message || 'unknown',
+      conversationHistory: req.body?.conversationHistory || [],
+      error: error.message,
+    }).catch(err => console.error('[API] Error logging error to Google Sheets:', err));
+    
     return res.status(500).json({ 
       error: 'Failed to process chat message',
       message: error.message 

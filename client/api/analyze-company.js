@@ -2,6 +2,7 @@
 // This endpoint generates a 90-day plan using LLM analysis
 
 import { generate90DayPlan, analyzeJobFit, scrapeJobDescription } from './helpers.js';
+import { logPlanGenerator } from './logger.js';
 
 // For Vercel, we export a default async function that receives req and res
 export default async function handler(req, res) {
@@ -68,6 +69,16 @@ export default async function handler(req, res) {
       tokens: { input: 0, output: 0, total: 0 }
     };
 
+    // Log the interaction to Google Sheets
+    logPlanGenerator({
+      companyName,
+      jobDescription,
+      isUrl,
+      plan,
+      jobFit,
+      metadata,
+    }).catch(err => console.error('[API] Error logging to Google Sheets:', err));
+
     return res.status(200).json({
       plan,
       jobFit,
@@ -75,6 +86,15 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Error analyzing company:', error);
+    
+    // Log the error to Google Sheets
+    logPlanGenerator({
+      companyName: req.body?.companyName || 'unknown',
+      jobDescription: req.body?.jobDescription || 'unknown',
+      isUrl: req.body?.jobDescription?.trim().startsWith('http'),
+      error: error.message,
+    }).catch(err => console.error('[API] Error logging error to Google Sheets:', err));
+    
     return res.status(500).json({ 
       error: 'Failed to analyze company',
       message: error.message 
