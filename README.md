@@ -1,6 +1,6 @@
 # Rushil Chandrupatla - Portfolio Website
 
-An interactive portfolio website showcasing ML engineering projects, systems design, and problem-solving approaches. Built with React, Vite, and Tailwind CSS.
+An interactive portfolio website showcasing ML engineering projects, systems design, and problem-solving approaches. Built with React, Vite, and Tailwind CSS. Initially scaffolded from an open-source React portfolio template and now fully customized with original design, content, and functionality.
 
 ## 🚀 Features
 
