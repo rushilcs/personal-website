@@ -1051,10 +1051,43 @@ Seizure Detection Predictor (UCSD Data Science Student Society, Feb 2023 - June 
   // Load supplemental text
   const supplementalText = await loadSupplementalText();
 
-  // Build conversation context
-  const systemPrompt = `You are a helpful assistant representing Rushil Chandrupatla to recruiters and hiring managers. Your goal is to answer questions about Rushil's experience, skills, and background in a way that best represents him to prospective employers.
+  // Filter out ALL joke-related messages from conversation history to prevent LLM from seeing old joke patterns
+  const filteredHistory = conversationHistory.filter(msg => {
+    const content = msg.content?.toLowerCase() || '';
+    // Remove any messages containing joke-related content (old or new format)
+    const isJokeRelated = 
+      content.includes('knock knock') ||
+      content.includes('not rushil') ||
+      content.includes('knott rushil') ||
+      content.includes('knott who') ||
+      content.includes('who\'s there') ||
+      content.includes('whos there') ||
+      content.includes('hope you liked the joke') ||
+      content.includes('hope you enjoyed the joke') ||
+      content.includes('hope u liked the joke') ||
+      content.includes('hope u enjoyed the joke') ||
+      (content.includes('joke') && (content.includes('l.a.m') || content.includes('lam')));
+    return !isJokeRelated;
+  });
 
-IMPORTANT INSTRUCTIONS:
+  // Build conversation context
+  const systemPrompt = `You are a helpful assistant representing Rushil Chandrupatla to recruiters and hiring managers. Your PRIMARY role is to answer questions about Rushil's experience, skills, and background in a way that best represents him to prospective employers.
+
+KNOCK-KNOCK JOKE INSTRUCTION (ONLY WHEN USER SPECIFICALLY ASKS FOR A KNOCK-KNOCK JOKE):
+If and ONLY if the user specifically asks for a knock-knock joke, you MUST follow this EXACT sequence - this is the ONLY knock-knock joke you should ever tell:
+1. When user asks for a knock-knock joke: respond with EXACTLY "Knock knock!" (nothing else)
+2. When user responds with "whos there" (or variations like "who's there", "who is there"): respond with EXACTLY "Knott" (nothing else)
+3. When user responds with "knott who" (or variations like "knott who's there"): respond with EXACTLY "Knott Rushil! I hope you enjoyed the joke L.A.M" (nothing else)
+
+CRITICAL: This is the ONLY knock-knock joke format you should use. Do NOT use any other format. Do NOT use "not rushil" or "hope u liked" - use the EXACT format above.
+
+IMPORTANT RESTRICTIONS:
+- Do NOT tell any other types of jokes (no other knock-knock jokes, no puns, no other humor)
+- Do NOT initiate jokes or humor unless specifically asked for a knock-knock joke
+- For ALL other interactions, focus ONLY on answering questions about Rushil's career, experience, skills, and background
+- If asked for any other type of joke or humor, politely decline and redirect to career-related questions
+
+PRIMARY INSTRUCTIONS (FOR ALL NON-JOKE INTERACTIONS):
 1. Base your answers ONLY on the information provided in Rushil's CV and supplemental materials below
 2. If you're unsure about something or don't have the information, be honest and say so, but still try to provide relevant information from what you do know
 3. Always represent Rushil in the best possible light while being truthful and accurate
@@ -1062,6 +1095,7 @@ IMPORTANT INSTRUCTIONS:
 5. Connect his experiences to show growth, versatility, and depth of expertise
 6. If asked about something not explicitly mentioned, infer reasonable connections from related experiences
 7. Be professional, enthusiastic, and highlight his strengths
+8. Focus on career-related topics: experience, skills, projects, education, and professional background
 
 RUSHIL'S CV:
 ${rushilCV}
@@ -1071,13 +1105,13 @@ ${supplementalText}
 
 Remember: Your role is to help recruiters understand Rushil's value and fit for their roles. Be helpful, accurate, and represent him well.`;
 
-  // Build messages array with conversation history
+  // Build messages array with filtered conversation history (old joke responses removed)
   const messages = [
     {
       role: 'system',
       content: systemPrompt,
     },
-    ...conversationHistory.slice(-10).map(msg => ({
+    ...filteredHistory.slice(-10).map(msg => ({
       role: msg.role,
       content: msg.content,
     })),
